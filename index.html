@@ -156,6 +156,11 @@ https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js
 
         // 必要に応じてここでビープ音などを鳴らす処理を追加できます
 
+        // 別タブでURLにdataに含まれるURLを開く
+        if (code.data.startsWith('http')) {
+          window.open(code.data, '_blank');
+        }
+
         // 検出後も継続してスキャンする場合はコメントを外す
         // setTimeout(() => requestAnimationFrame(tick), 500);
 
