@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QRコードリーダー</title>
+  <style>
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      text-align: center;
+    }
+    #video-container {
+      margin: 20px auto;
+      width: 100%;
+      max-width: 500px;
+      border: 3px solid #ccc;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    #qr-video {
+      width: 100%;
+      height: auto;
+    }
+    #result {
+      margin: 20px auto;
+      padding: 15px;
+      background-color: #f5f5f5;
+      border-radius: 5px;
+      font-size: 18px;
+      min-height: 50px;
+    }
+    button {
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 10px 2px;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+<h1>QR/バーコードリーダー</h1>
+<p>カメラを使ってQRコードやバーコードを読み取ります</p>
+
+<div id="video-container">
+  <video id="qr-video" playsinline></video>
+</div>
+
+<div>
+  <button id="start-button">スキャン開始</button>
+  <button id="stop-button" disabled>スキャン停止</button>
+</div>
+
+<div id="result">結果がここに表示されます</div>
+
+<!-- jsQRライブラリの読み込み -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+
+<script>
+  const video = document.getElementById('qr-video');
+  const startButton = document.getElementById('start-button');
+  const stopButton = document.getElementById('stop-button');
+  const resultElement = document.getElementById('result');
+
+  let canvasElement = document.createElement('canvas');
+  let canvas = canvasElement.getContext('2d');
+
+  let scanning = false;
+  let videoStream = null;
+
+  // カメラ起動とスキャン開始
+  startButton.addEventListener('click', () => {
+    startScan();
+  });
+
+  // スキャン停止
+  stopButton.addEventListener('click', () => {
+    stopScan();
+  });
+
+  // スキャン開始関数
+  function startScan() {
+    if (scanning) return;
+
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" }
+    })
+            .then(function(stream) {
+              scanning = true;
+              videoStream = stream;
+              video.srcObject = stream;
+              video.setAttribute('playsinline', true);
+              video.play();
+              requestAnimationFrame(tick);
+
+              startButton.disabled = true;
+              stopButton.disabled = false;
+              resultElement.textContent = "スキャン中...";
+            })
+            .catch(function(error) {
+              console.error('カメラへのアクセスに失敗しました: ', error);
+              resultElement.textContent = "エラー: カメラへのアクセスに失敗しました。";
+            });
+  }
+
+  // スキャン停止関数
+  function stopScan() {
+    if (!scanning) return;
+
+    scanning = false;
+    if (videoStream) {
+      videoStream.getTracks().forEach(track => {
+        track.stop();
+      });
+      videoStream = null;
+    }
+
+    startButton.disabled = false;
+    stopButton.disabled = true;
+    resultElement.textContent = "スキャンを停止しました";
+  }
+
+  // QRコード検出処理
+  function tick() {
+    if (!scanning) return;
+
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvasElement.height = video.videoHeight;
+      canvasElement.width = video.videoWidth;
+      canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+
+      const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: "dontInvert",
+      });
+
+      if (code) {
+        // QRコード検出成功
+        console.log("QRコードを検出しました", code);
+        resultElement.textContent = `検出内容: ${code.data}`;
+
+        // 必要に応じてここでビープ音などを鳴らす処理を追加できます
+
+        // 検出後も継続してスキャンする場合はコメントを外す
+        // setTimeout(() => requestAnimationFrame(tick), 500);
+
+        // 検出後にスキャンを停止する場合
+        stopScan();
+        return;
+      }
+    }
+
+    requestAnimationFrame(tick);
+  }
+</script>
+</body>
+</html>
